@@ -75,6 +75,25 @@
   padding-bottom: 12px;
 }
 
+/* Modal-specific adjustments: make modal body background blend with content panel */
+.modal .modal-body {
+  background: transparent;
+}
+
+/* Slightly increase padding for content panels inside modal */
+.modal .content-panel {
+  padding: 28px;
+}
+
+/* Lower modal z-index so chatbot (z-index 1000) stays on top and editable */
+.modal-backdrop {
+  z-index: 999 !important;
+}
+
+.modal {
+  z-index: 999 !important;
+}
+
 /* Responsive: stack on mobile */
 @media (max-width: 768px) {
   .content-panel {

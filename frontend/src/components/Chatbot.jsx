@@ -144,8 +144,9 @@ export default function Chatbot({ filename, isOpen, onToggle }) {
           onChange={(e) => setInputValue(e.target.value)}
           onKeyPress={handleKeyPress}
           placeholder="Ask a question about the document..."
-          disabled={loading || !filename}
+          disabled={loading}
           rows="3"
+          autoFocus
         />
         <button
           onClick={handleSendMessage}
