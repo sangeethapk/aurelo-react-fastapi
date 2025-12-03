@@ -1,10 +1,17 @@
-fastapi==0.101.0
-uvicorn[standard]==0.22.0
-langchain-community==0.0.XX
-langchain-core==0.0.XX
-python-multipart==0.0.6
-python-dotenv==1.0.0
-PyMuPDF==1.22.0
+fastapi==0.122.0
+uvicorn==0.38.0
+langchain==1.1.0
+langchain-chroma==1.0.0
+langchain-classic == 1.0.0
+langchain-community== 0.4.1
+langchain-core==1.1.0
+langchain-google-genai==3.1.0
+langchain-huggingface==1.1.0
+langchain-openai==1.0.3
+langchain-text-splitters==1.0.0
+python-multipart==  0.0.20
+python-dotenv== 1.2.1
+PyMuPDF== 1.26.6
 chromadb==0.4.0
-sentence-transformers==2.2.2
-google-generativeai==0.6.0
+sentence-transformers==5.1.2
+google-generativeai==0.8.5
