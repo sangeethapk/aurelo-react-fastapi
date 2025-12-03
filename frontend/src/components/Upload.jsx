@@ -1,31 +1,71 @@
 import React, { useState } from "react";
-import { uploadPDF } from "../api";
+import { Form, Button, Alert, ProgressBar } from "react-bootstrap";
 
-export default function Upload({ onReady }) {
+const API_BASE = "http://localhost:8000";
+
+export default function Upload({ onUploaded }) {
   const [file, setFile] = useState(null);
-  const [status, setStatus] = useState("");
+  const [statusMsg, setStatusMsg] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  async function doUpload() {
+  const handleChange = (e) => {
+    setFile(e.target.files?.[0] || null);
+    setStatusMsg("");
+  };
+
+  const doUpload = async () => {
     if (!file) {
-      setStatus("Select a PDF first");
+      setStatusMsg("Select a PDF first");
       return;
     }
-    setStatus("Uploading & indexing...");
+    setLoading(true);
+    setStatusMsg("Uploading & processing...");
+
     try {
-      const data = await uploadPDF(file);
-      // data: { status: "ready", filename, chunks }
-      setStatus("File processed and ready for summarization.");
-      if (onReady) onReady(data.filename); // notify App that file is ready
-    } catch (e) {
-      setStatus("Error: " + (e.message || e));
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`${API_BASE}/upload`, {
+        method: "POST",
+        body: fd,
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || `Upload failed (${res.status})`);
+      }
+
+      const data = await res.json();
+      if (data.status === "ready") {
+        setStatusMsg("File processed and ready for summarization.");
+        // pass total_chunks to parent so UI can decide summary size
+        onUploaded(data.filename || file.name, true, data.total_chunks || 0);
+      } else {
+        setStatusMsg("Processing returned unexpected status.");
+        onUploaded(data.filename || file.name, false, data.total_chunks || 0);
+      }
+    } catch (err) {
+      console.error(err);
+      setStatusMsg("Upload/processing failed: " + (err.message || err));
+    } finally {
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div>
-      <input type="file" accept="application/pdf" onChange={(e) => setFile(e.target.files?.[0])} />
-      <button onClick={doUpload} style={{ marginLeft: 8 }}>Upload</button>
-      <div style={{ marginTop: 8 }}>{status}</div>
+      <Form.Group controlId="fileUpload" className="mb-2">
+        <Form.Label>Upload a PDF</Form.Label>
+        <Form.Control type="file" accept="application/pdf" onChange={handleChange} />
+      </Form.Group>
+
+      <div className="d-flex gap-2">
+        <Button onClick={doUpload} disabled={!file || loading} variant="primary">
+          {loading ? "Uploading..." : "Upload & Index"}
+        </Button>
+        {statusMsg && <div style={{ alignSelf: "center", color: "#374151" }}>{statusMsg}</div>}
+      </div>
+
+      {loading && <ProgressBar animated now={100} className="mt-2" />}
     </div>
   );
 }
