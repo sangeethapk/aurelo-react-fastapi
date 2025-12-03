@@ -1239,3 +1239,113 @@ async def generate_short_answer(filename: str, difficulty: str = "medium", num_q
     logger.info(f"✓ Generated {len(questions)} short answer questions for {filename} (difficulty: {difficulty})")
     
     return {"questions": questions}
+
+
+@app.post("/generate-all")
+async def generate_all_content(filename: str):
+    """
+    Generate all learning content (summary, MCQ, fill-in-the-blanks, short answer) for a file.
+    
+    This endpoint is called after successful upload to pre-generate all content
+    and cache it on the client side for instant retrieval.
+    
+    Args:
+        filename (str): The PDF filename (already uploaded).
+    
+    Returns:
+        dict: {
+            "filename": str,
+            "summary": List[str],
+            "mcq": List[dict],
+            "fill_blanks": List[dict],
+            "short_answer": List[dict]
+        }
+    
+    Raises:
+        HTTPException 400: If file not found or has no chunks.
+        HTTPException 500: If generation fails.
+    """
+    try:
+        # Ensure embedding model is available
+        if embedding_model is None:
+            raise HTTPException(500, "Embedding model not initialized. Check server logs.")
+
+        # Load vectorstore for this specific file
+        coll = _coll_name(filename)
+        persist_dir = os.path.join(CHROMA_PERSIST_DIR, coll)
+        
+        if not os.path.exists(persist_dir):
+            raise HTTPException(400, f"File {filename} not found or has no indexed content.")
+        
+        try:
+            vectorstore = Chroma(
+                persist_directory=persist_dir,
+                embedding_function=embedding_model
+            )
+        except Exception as e:
+            logger.error(f"Error loading vectorstore: {e}")
+            raise HTTPException(500, f"Failed to load vectorstore: {str(e)}")
+        
+        # Retrieve chunks for generation
+        query = f"content from {filename}"
+        results = vectorstore.similarity_search(query, k=12)
+        
+        if not results:
+            raise HTTPException(400, "No content found in document.")
+        
+        chunks = [doc.page_content for doc in results]
+        
+        # Generate all content
+        all_content = {
+            "filename": filename,
+            "summary": [],
+            "mcq": [],
+            "fill_blanks": [],
+            "short_answer": []
+        }
+        
+        # 1. Generate summary (default: 6 points)
+        if GOOGLE_API_KEY:
+            try:
+                summary_points = summarize_chunks_with_gemini_json(chunks, max_chunks=8, num_points=6)
+                all_content["summary"] = summary_points
+                logger.info(f"✓ Generated summary for {filename}")
+            except Exception as e:
+                logger.warning(f"Summary generation failed: {e}")
+        
+        # 2. Generate MCQ (medium difficulty, 5 questions)
+        if GOOGLE_API_KEY:
+            try:
+                mcq_questions = generate_mcqs_with_gemini(chunks, difficulty="medium", num_questions=5)
+                all_content["mcq"] = mcq_questions
+                logger.info(f"✓ Generated MCQ for {filename}")
+            except Exception as e:
+                logger.warning(f"MCQ generation failed: {e}")
+        
+        # 3. Generate Fill-in-the-Blanks (medium difficulty, 5 questions)
+        if GOOGLE_API_KEY:
+            try:
+                fib_questions = generate_fill_blanks_with_gemini(chunks, difficulty="medium", num_questions=5)
+                all_content["fill_blanks"] = fib_questions
+                logger.info(f"✓ Generated fill-in-the-blanks for {filename}")
+            except Exception as e:
+                logger.warning(f"Fill-in-the-blanks generation failed: {e}")
+        
+        # 4. Generate Short Answer (medium difficulty, 5 questions)
+        if GOOGLE_API_KEY:
+            try:
+                short_answer_questions = generate_short_answer_with_gemini(chunks, difficulty="medium", num_questions=5)
+                all_content["short_answer"] = short_answer_questions
+                logger.info(f"✓ Generated short answer questions for {filename}")
+            except Exception as e:
+                logger.warning(f"Short answer generation failed: {e}")
+        
+        logger.info(f"✓ Generated all content for {filename}")
+        return all_content
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error generating all content: {e}")
+        raise HTTPException(500, f"Error generating content: {str(e)}")
+

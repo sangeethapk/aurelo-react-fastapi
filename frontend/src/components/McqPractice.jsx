@@ -3,10 +3,10 @@ import { Button, Alert, Spinner, Form, Row, Col, Card, ProgressBar } from "react
 
 const API_BASE = "http://localhost:8000";
 
-export default function McqPractice({ filename }) {
+export default function McqPractice({ filename, cachedQuestions = null }) {
   const [difficulty, setDifficulty] = useState("medium");
   const [numQuestions, setNumQuestions] = useState(5);
-  const [questions, setQuestions] = useState([]);
+  const [questions, setQuestions] = useState(cachedQuestions || []);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -14,6 +14,7 @@ export default function McqPractice({ filename }) {
   const [showResults, setShowResults] = useState(false);
   const [score, setScore] = useState(0);
   const [showConfig, setShowConfig] = useState(false);
+  const [usedCache, setUsedCache] = useState(!!cachedQuestions);
 
   async function generateMCQs() {
     if (!filename) {

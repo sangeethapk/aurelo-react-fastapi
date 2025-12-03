@@ -16,7 +16,21 @@ export default function LearningTabs({
 	error,
 }) {
 	const [active, setActive] = useState(null); // 'summary'|'mcq'|'fib'|'short' or null
+	const [cachedData, setCachedData] = useState({}); // Cache from localStorage
 	const panelRef = useRef(null);
+
+	// Load cached data from localStorage on mount or filename change
+	useEffect(() => {
+		if (!filename) return;
+		const cached = localStorage.getItem(`aurelo_${filename}_cached`);
+		if (cached) {
+			try {
+				setCachedData(JSON.parse(cached));
+			} catch (e) {
+				console.warn("Failed to parse cached data", e);
+			}
+		}
+	}, [filename]);
 
 	// Focus first control when modal opens
 	useEffect(() => {
@@ -64,11 +78,11 @@ export default function LearningTabs({
 				);
 
 			case 'mcq':
-				return <McqPractice filename={filename} />;
+				return <McqPractice filename={filename} cachedQuestions={cachedData.mcq} />;
 			case 'fib':
-				return <FillInBlanks filename={filename} />;
+				return <FillInBlanks filename={filename} cachedQuestions={cachedData.fill_blanks} />;
 			case 'short':
-				return <ShortAnswer filename={filename} />;
+				return <ShortAnswer filename={filename} cachedQuestions={cachedData.short_answer} />;
 			default:
 				return null;
 		}

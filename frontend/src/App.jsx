@@ -19,13 +19,57 @@ export default function App() {
   const [useLLM, setUseLLM] = useState(true);
   const [chatbotOpen, setChatbotOpen] = useState(false);
   const [totalChunks, setTotalChunks] = useState(0);
+  const [generatingAll, setGeneratingAll] = useState(false); // Track bulk generation
 
   function handleUploaded(fn, ready = true, chunks = 0) {
+    // Clear ALL previous file caches to ensure clean state
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('aurelo_') && !key.endsWith(`${fn}_cached`)) {
+        localStorage.removeItem(key);
+      }
+    });
+    
     setFilename(fn);
     setReadyForSummary(Boolean(ready));
     setSummaryItems([]);
     setError(null);
     setTotalChunks(Number(chunks || 0));
+    
+    // If file is ready, generate all content in background
+    if (ready) {
+      generateAllContent(fn);
+    }
+  }
+
+  // Generate all content (summary, MCQ, FIB, short answer) and cache in localStorage
+  async function generateAllContent(fn) {
+    try {
+      setGeneratingAll(true);
+      const url = `${API_BASE}/generate-all?filename=${encodeURIComponent(fn)}`;
+      const res = await fetch(url, { method: "POST" });
+      
+      if (!res.ok) {
+        console.warn("Bulk generation failed, will generate on-demand");
+        return;
+      }
+
+      const data = await res.json();
+      
+      // Cache results in localStorage
+      localStorage.setItem(`aurelo_${fn}_cached`, JSON.stringify({
+        summary: data.summary || [],
+        mcq: data.mcq || [],
+        fill_blanks: data.fill_blanks || [],
+        short_answer: data.short_answer || [],
+        timestamp: new Date().toISOString(),
+      }));
+      
+      console.log(`✓ Cached all content for ${fn}`);
+    } catch (err) {
+      console.warn("Failed to generate all content:", err);
+    } finally {
+      setGeneratingAll(false);
+    }
   }
 
   async function generateSummary() {
